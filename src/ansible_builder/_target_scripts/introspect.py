@@ -75,11 +75,15 @@ class CollectionDefinition:
 
     def get_dependency(self, entry):
         """A collection is only allowed to reference a file by a relative path
-        which is relative to the collection root
+        which is relative to the collection root.
+        The dependency value may also be an inline list of package names,
+        as allowed by the EE definition schema (TYPE_StringOrListOfStrings).
         """
         req_file = self.raw.get('dependencies', {}).get(entry)
         if req_file is None:
             return None
+        if isinstance(req_file, list):
+            return req_file
         if os.path.isabs(req_file):
             raise RuntimeError(
                 'Collections must specify relative paths for requirements files. '
@@ -142,12 +146,18 @@ def process_collection(path):
     py_file = col_def.get_dependency('python')
     pip_lines = []
     if py_file:
-        pip_lines = pip_file_data(os.path.join(path, py_file))
+        if isinstance(py_file, list):
+            pip_lines = [line for line in py_file if not line_is_empty(str(line))]
+        else:
+            pip_lines = pip_file_data(os.path.join(path, py_file))
 
     sys_file = col_def.get_dependency('system')
     bindep_lines = []
     if sys_file:
-        bindep_lines = bindep_file_data(os.path.join(path, sys_file))
+        if isinstance(sys_file, list):
+            bindep_lines = [line for line in sys_file if not line_is_empty(str(line))]
+        else:
+            bindep_lines = bindep_file_data(os.path.join(path, sys_file))
 
     return (pip_lines, bindep_lines)
 
